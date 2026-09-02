@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>朱批</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#EAE7DC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="朱批">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{
+  --paper:#EAE7DC; --ink:#22201C; --dim:#6E6659; --rule:#CFC9BA;
+  --ui:#F3F1E9; --ui2:#E2DFD3;
+  --zhu:#A62B1F; --zhu-soft:rgba(166,43,31,.12); --say:rgba(166,43,31,.22);
+  --fs:18px; --lh:1.92; --side:22px;
+  --body-font:var(--serif);
+  --serif:"Songti SC","Source Han Serif SC","Noto Serif CJK SC","STSong",Georgia,"Times New Roman",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",system-ui,sans-serif;
+}
+html[data-theme="warm"]{ --paper:#F0E4CE; --ink:#2A231A; --dim:#7A6A52; --rule:#D8C6A6; --ui:#F6EDDD; --ui2:#E7D9BE; --zhu:#9C3A22; --zhu-soft:rgba(156,58,34,.14); --say:rgba(156,58,34,.24); }
+html[data-theme="night"]{ --paper:#171614; --ink:#C6C0B3; --dim:#7C7566; --rule:#2E2C27; --ui:#0F0F0E; --ui2:#232220; --zhu:#C9584A; --zhu-soft:rgba(201,88,74,.18); --say:rgba(201,88,74,.3); }
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:16px;
+  -webkit-user-select:none; user-select:none;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--paper)}
+.screen[hidden]{display:none}
+
+/* ───── 书架 ───── */
+#library{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.libHead{
+  display:flex;align-items:baseline;justify-content:space-between;
+  padding:calc(env(safe-area-inset-top) + 28px) var(--side) 18px;
+}
+.libHead h1{font-family:var(--serif);font-size:30px;margin:0;letter-spacing:.12em;font-weight:600}
+.libHead p{margin:6px 0 0;color:var(--dim);font-size:13px}
+.shelf{padding:0 var(--side) 120px}
+.bookRow{display:flex;gap:16px;padding:16px 0;border-top:1px solid var(--rule);align-items:flex-start;width:100%;text-align:left}
+.bookRow:first-child{border-top:0}
+.cover{width:56px;height:80px;flex:0 0 56px;background:var(--ui2);border-radius:2px;object-fit:cover;
+  display:grid;place-items:center;font-family:var(--serif);font-size:20px;color:var(--dim);overflow:hidden}
+.bookMeta{flex:1;min-width:0;padding-top:2px}
+.bookMeta b{display:block;font-family:var(--serif);font-size:17px;font-weight:600;line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bookMeta span{display:block;color:var(--dim);font-size:13px;margin-top:4px}
+.bookMeta .stat{margin-top:8px;font-size:12px;color:var(--dim)}
+.bookMeta .stat i{font-style:normal;color:var(--zhu)}
+.rowDel{align-self:center;color:var(--dim);font-size:20px;padding:8px 4px;line-height:1}
+.empty{padding:60px var(--side);text-align:center;color:var(--dim);line-height:2}
+.fab{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom) + 26px);
+  background:var(--ink);color:var(--paper);border-radius:999px;
+  padding:14px 30px;font-size:15px;letter-spacing:.06em;box-shadow:0 6px 22px rgba(0,0,0,.18);
+}
+
+#syncBar{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  margin:0 var(--side) 6px;width:calc(100% - var(--side)*2);
+  padding:11px 14px;background:var(--ui);border:1px solid var(--rule);border-radius:10px;
+  font-size:13px;color:var(--dim);
+}
+#syncBar .dot{width:7px;height:7px;border-radius:50%;background:var(--rule);flex:0 0 auto}
+#syncBar.live .dot{background:var(--zhu)}
+#syncBar .msg{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.field input{
+  width:100%;background:var(--ui);border:1px solid var(--rule);border-radius:10px;
+  padding:12px 14px;-webkit-user-select:text;user-select:text;font-size:15px;
+}
+.hint{padding:20px var(--side) 0;margin:0;color:var(--dim);font-size:13px;line-height:1.8}
+.cloudOnly .cover{opacity:.45}
+
+/* ───── 阅读 ───── */
+#scroller{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+#pages{
+  position:relative;
+  padding:calc(env(safe-area-inset-top) + 66px) var(--side) 45vh;
+  max-width:640px;margin:0 auto;
+  font-family:var(--body-font);font-size:var(--fs);line-height:var(--lh);
+  -webkit-user-select:text;user-select:text;
+}
+#pages section{padding-bottom:10px}
+#pages p{margin:0 0 .5em;text-indent:2em;text-align:justify;text-justify:inter-ideograph}
+#pages blockquote p,#pages p:has(img){text-indent:0}
+#pages h1,#pages h2,#pages h3,#pages h4{
+  font-weight:600;line-height:1.5;margin:1.8em 0 .9em;font-size:1.12em;letter-spacing:.05em}
+#pages img,#pages svg{max-width:100%;height:auto;display:block;margin:1.2em auto}
+#pages blockquote{margin:1.2em 0;padding-left:1em;border-left:2px solid var(--rule);color:var(--dim)}
+#pages a{color:inherit;text-decoration:underline;text-decoration-color:var(--rule)}
+#pages ::selection{background:var(--zhu-soft)}
+.chapMark{display:flex;align-items:center;gap:14px;margin:0 0 2.2em;color:var(--dim);
+  font-family:var(--sans);font-size:12px;letter-spacing:.14em}
+.chapMark:before,.chapMark:after{content:"";flex:1;height:1px;background:var(--rule)}
+.chapMark span{flex:0 0 auto;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+::highlight(speaking){background:var(--say);color:inherit}
+mark.say{background:var(--say);color:inherit;border-radius:2px}
+mark.hl{
+  background:var(--zhu-soft);color:inherit;
+  border-bottom:1.5px solid var(--zhu);
+  padding-bottom:1px;border-radius:1px;
+}
+
+.bar{
+  position:fixed;left:0;right:0;z-index:20;background:var(--ui);
+  transition:transform .22s ease;border-color:var(--rule);
+}
+.bar.hide{transform:translateY(var(--away))}
+#topBar{
+  top:0;--away:-110%;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--rule);
+}
+#topBar .title{flex:1;min-width:0;text-align:center;font-family:var(--serif);font-size:15px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icb{padding:8px 11px;font-size:14px;color:var(--dim);border-radius:8px;white-space:nowrap}
+.icb.on{color:var(--zhu)}
+#botBar{
+  bottom:0;--away:110%;padding:9px var(--side) calc(env(safe-area-inset-bottom) + 9px);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border-top:1px solid var(--rule);font-size:12px;color:var(--dim);
+}
+#botBar .where{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#botBar .pct{flex:0 0 auto;font-variant-numeric:tabular-nums}
+#footNormal{display:flex;align-items:center;gap:10px;width:100%}
+.mini{flex:0 0 auto;padding:6px 10px;border:1px solid var(--rule);border-radius:7px;font-size:12px;color:var(--dim)}
+.mini.on{border-color:var(--zhu);color:var(--zhu)}
+#autoBar{display:flex;align-items:center;gap:2px;width:100%}
+#autoBar button{padding:8px 12px;border-radius:8px;color:var(--ink);font-size:15px;line-height:1}
+#autoBar #asRate{flex:1;text-align:center;font-size:12px;color:var(--dim);font-weight:400;font-variant-numeric:tabular-nums}
+#autoBar #asStop{color:var(--dim);font-size:13px}
+#ttsBar{display:flex;align-items:center;gap:2px;width:100%}
+#ttsBar button{padding:8px 12px;border-radius:8px;color:var(--ink);font-size:15px;line-height:1}
+#ttsBar #ttsRate{margin-left:auto;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+#ttsBar #ttsStop{color:var(--dim);font-size:13px}
+#topBar .icb{padding:8px 9px}
+.sel{width:100%;background:var(--ui);border:1px solid var(--rule);border-radius:9px;padding:11px 12px;font-size:14px}
+
+/* 选中后的操作条 */
+#selBar{
+  position:fixed;z-index:60;display:none;gap:2px;padding:4px;
+  background:var(--ink);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.28);
+}
+#selBar.show{display:flex}
+#selBar button{color:var(--paper);font-size:14px;padding:9px 15px;border-radius:7px}
+#selBar button+button{border-left:1px solid rgba(255,255,255,.16)}
+
+/* ───── 抽屉 ───── */
+.sheet{
+  position:fixed;inset:0;z-index:70;background:var(--paper);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform .26s cubic-bezier(.32,.72,0,1);
+  visibility:hidden;
+}
+.sheet.open{transform:none;visibility:visible}
+.shHead{
+  display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 12px) 12px 12px;
+  border-bottom:1px solid var(--rule);
+}
+.shHead h2{flex:1;margin:0;font-family:var(--serif);font-size:17px;font-weight:600;letter-spacing:.08em}
+.shBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(env(safe-area-inset-bottom) + 40px)}
+
+/* 目录 */
+.tocItem{display:block;width:100%;text-align:left;padding:14px var(--side);border-bottom:1px solid var(--rule);
+  font-family:var(--serif);font-size:15px;line-height:1.5}
+.tocItem[data-depth="1"]{padding-left:calc(var(--side) + 18px);font-size:14px;color:var(--dim)}
+.tocItem.cur{color:var(--zhu)}
+
+/* 笔记本 */
+.noteTools{display:flex;gap:8px;padding:12px var(--side);border-bottom:1px solid var(--rule);align-items:center}
+.noteTools input{flex:1;background:var(--ui);border:1px solid var(--rule);border-radius:8px;
+  padding:9px 12px;font-size:14px;-webkit-user-select:text;user-select:text}
+.noteTools button{color:var(--dim);font-size:13px;padding:9px 10px;white-space:nowrap}
+.grp{padding:22px var(--side) 4px;color:var(--dim);font-size:12px;letter-spacing:.1em}
+.note{padding:12px var(--side) 18px;border-bottom:1px solid var(--rule)}
+.note .q{
+  font-family:var(--serif);font-size:15px;line-height:1.85;
+  padding-left:14px;border-left:2px solid var(--zhu);
+}
+.note .c{margin:10px 0 0;padding-left:16px;font-size:14px;line-height:1.75;color:var(--dim);white-space:pre-wrap}
+.note .c.blank{color:var(--zhu);opacity:.75}
+.note .act{display:flex;gap:16px;margin-top:12px;padding-left:16px;font-size:12px;color:var(--dim)}
+.note .act button{font-size:12px;color:var(--dim);padding:4px 0}
+
+/* 笔记编辑 */
+.field{padding:18px var(--side) 0}
+.field label{display:block;font-size:12px;color:var(--dim);letter-spacing:.1em;margin-bottom:8px}
+.field textarea{
+  width:100%;background:var(--ui);border:1px solid var(--rule);border-radius:10px;
+  padding:12px 14px;resize:vertical;-webkit-user-select:text;user-select:text;
+  line-height:1.8;
+}
+#neQuote{font-family:var(--serif);font-size:15px;min-height:110px;border-left:2px solid var(--zhu)}
+#neComment{font-size:15px;min-height:180px}
+.saveRow{padding:22px var(--side) 40px;display:flex;gap:12px}
+.saveRow button{flex:1;padding:14px;border-radius:10px;font-size:15px}
+.primary{background:var(--ink);color:var(--paper)}
+.ghost{border:1px solid var(--rule);color:var(--dim)}
+.danger{color:var(--zhu)}
+
+/* 设置 */
+.setRow{padding:18px var(--side);border-bottom:1px solid var(--rule)}
+.setRow > span{display:block;font-size:12px;color:var(--dim);letter-spacing:.1em;margin-bottom:12px}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;padding:11px 6px;border:1px solid var(--rule);border-radius:9px;font-size:14px;color:var(--dim)}
+.seg button.on{border-color:var(--ink);color:var(--ink)}
+.seg button[data-theme-btn="day"]{background:#EAE7DC;color:#22201C}
+.seg button[data-theme-btn="warm"]{background:#F0E4CE;color:#2A231A}
+.seg button[data-theme-btn="night"]{background:#171614;color:#C6C0B3}
+.stepper{display:flex;align-items:center;gap:14px}
+.stepper button{width:46px;height:44px;border:1px solid var(--rule);border-radius:9px;font-size:18px}
+.stepper b{font-weight:400;font-variant-numeric:tabular-nums;min-width:56px;text-align:center;color:var(--dim);font-size:14px}
+.verLine{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--dim)}
+.verLine b{flex:1;font-weight:400;font-variant-numeric:tabular-nums}
+.verLine button{padding:10px 16px;border:1px solid var(--rule);border-radius:9px;font-size:14px;color:var(--dim);white-space:nowrap}
+.sample{margin-top:14px;font-family:var(--body-font);font-size:var(--fs);line-height:var(--lh);color:var(--dim)}
+
+#toast{
+  position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);
+  background:var(--ink);color:var(--paper);padding:11px 20px;border-radius:999px;font-size:14px;
+  z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;
+}
+#toast.show{opacity:.95}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- 书架 -->
+<div class="screen" id="library">
+  <div class="libHead">
+    <div>
+      <h1>朱批</h1>
+      <p>读书，摘录，写下你的感悟</p>
+    </div>
+  </div>
+  <button id="syncBar"><i class="dot"></i><span class="msg"></span></button>
+  <div class="shelf" id="shelf"></div>
+  <button class="fab" id="importBtn">导入 EPUB</button>
+  <input type="file" id="fileIn" accept=".epub,application/epub+zip" multiple hidden>
+</div>
+
+<!-- 阅读 -->
+<div class="screen" id="reader" hidden>
+  <div class="bar" id="topBar">
+    <button class="icb" id="backBtn">书架</button>
+    <div class="title" id="bookTitle"></div>
+    <button class="icb" id="tocBtn">目录</button>
+    <button class="icb" id="noteBtn">笔记</button>
+    <button class="icb" id="setBtn">Aa</button>
+  </div>
+  <div id="scroller"><div id="pages"></div></div>
+  <div class="bar" id="botBar">
+    <div id="footNormal">
+      <div class="where" id="whereNow"></div>
+      <div class="pct" id="pctNow"></div>
+      <button class="mini" id="ttsBtn">朗读</button>
+      <button class="mini" id="autoBtn">自动</button>
+    </div>
+    <div id="autoBar" hidden>
+      <button id="asToggle" title="暂停">❚❚</button>
+      <button id="asSlower">－</button>
+      <b id="asRate"></b>
+      <button id="asFaster">＋</button>
+      <button id="asStop">停</button>
+    </div>
+    <div id="ttsBar" hidden>
+      <button id="ttsPrev" title="上一句">◂◂</button>
+      <button id="ttsToggle" title="暂停">❚❚</button>
+      <button id="ttsNext" title="下一句">▸▸</button>
+      <button id="ttsRate">1.0×</button>
+      <button id="ttsStop">停</button>
+    </div>
+  </div>
+</div>
+
+<div id="selBar">
+  <button id="selNote">记笔记</button>
+  <button id="selRead">从这儿读</button>
+  <button id="selCopy">复制</button>
+</div>
+
+<!-- 同步 / 账号 -->
+<div class="sheet" id="authSheet">
+  <div class="shHead"><h2>同步</h2><button class="icb" data-close>关闭</button></div>
+  <div class="shBody">
+    <div id="authOut">
+      <p class="hint">在别的设备上用同一个账号登录,书、笔记和读到哪儿都会跟过去。</p>
+      <div class="field"><label>邮箱</label><input id="auEmail" type="email" autocomplete="email" autocapitalize="off"></div>
+      <div class="field"><label>密码</label><input id="auPass" type="password" autocomplete="current-password"></div>
+      <div class="saveRow"><button class="primary" id="auLogin">登录</button><button class="ghost" id="auSignup">注册</button></div>
+    </div>
+    <div id="authIn" hidden>
+      <div class="setRow"><span>账号</span><div id="auWho"></div></div>
+      <div class="setRow"><span>上次同步</span><div id="auWhen"></div></div>
+      <div class="saveRow"><button class="primary" id="auSync">立即同步</button><button class="ghost danger" id="auOut">退出登录</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- 目录 -->
+<div class="sheet" id="tocSheet">
+  <div class="shHead"><h2>目录</h2><button class="icb" data-close>关闭</button></div>
+  <div class="shBody" id="tocList"></div>
+</div>
+
+<!-- 笔记本 -->
+<div class="sheet" id="notesSheet">
+  <div class="shHead"><h2>笔记本</h2><button class="icb" data-close>关闭</button></div>
+  <div class="noteTools">
+    <input id="noteSearch" placeholder="搜索原文或感悟" type="search">
+    <button id="exportBtn">导出</button>
+  </div>
+  <div class="shBody" id="noteList"></div>
+</div>
+
+<!-- 笔记编辑 -->
+<div class="sheet" id="editSheet">
+  <div class="shHead"><h2 id="edTitle">写笔记</h2><button class="icb" data-close>关闭</button></div>
+  <div class="shBody">
+    <div class="field"><label>原文</label><textarea id="neQuote" rows="4"></textarea></div>
+    <div class="field"><label>我的感悟</label><textarea id="neComment" rows="8" placeholder="想到什么就写什么…"></textarea></div>
+    <div class="saveRow">
+      <button class="primary" id="neSave">保存</button>
+      <button class="ghost danger" id="neDel">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="sheet" id="setSheet">
+  <div class="shHead"><h2>阅读设置</h2><button class="icb" data-close>关闭</button></div>
+  <div class="shBody">
+    <div class="setRow"><span>底色</span>
+      <div class="seg" id="themeSeg">
+        <button data-theme-btn="day">竹纸</button>
+        <button data-theme-btn="warm">米黄</button>
+        <button data-theme-btn="night">夜间</button>
+      </div>
+    </div>
+    <div class="setRow"><span>字体</span>
+      <div class="seg" id="fontSeg">
+        <button data-font="serif" style="font-family:var(--serif)">宋体</button>
+        <button data-font="sans" style="font-family:var(--sans)">黑体</button>
+      </div>
+    </div>
+    <div class="setRow"><span>字号</span>
+      <div class="stepper"><button data-fs="-1">－</button><b id="fsVal"></b><button data-fs="1">＋</button></div>
+    </div>
+    <div class="setRow"><span>行距</span>
+      <div class="stepper"><button data-lh="-1">－</button><b id="lhVal"></b><button data-lh="1">＋</button></div>
+      <p class="sample">读书之法，在循序而渐进，熟读而精思。</p>
+    </div>
+    <div class="setRow"><span>自动划屏速度</span>
+      <div class="stepper"><button data-lpm="-1">－</button><b id="lpmVal"></b><button data-lpm="1">＋</button></div>
+      <p class="sample" id="lpmHint" style="font-family:var(--sans);font-size:13px"></p>
+    </div>
+    <div class="setRow"><span>朗读声音</span>
+      <select class="sel" id="ttsVoice"></select>
+      <div class="stepper" style="margin-top:14px">
+        <button data-rate="-1">－</button><b id="rateVal"></b><button data-rate="1">＋</button>
+      </div>
+      <p class="sample" id="ttsHint" style="font-family:var(--sans);font-size:13px"></p>
+    </div>
+    <div class="setRow"><span>页边距</span>
+      <div class="stepper"><button data-sd="-1">－</button><b id="sdVal"></b><button data-sd="1">＋</button></div>
+    </div>
+    <div class="setRow"><span>版本</span>
+      <div class="verLine"><b id="verVal"></b><button id="checkUpd">检查更新</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
