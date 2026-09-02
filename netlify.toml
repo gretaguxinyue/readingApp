@@ -1,0 +1,3 @@
+[build]
+  publish = "zhupi-reader/zhupi-reader/app"
+  command = ""
