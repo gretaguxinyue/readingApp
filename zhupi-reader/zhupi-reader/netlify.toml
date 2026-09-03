@@ -1,0 +1,8 @@
+# 放在仓库根目录(和 app/ desktop/ 平级)。
+# 有了这个文件,Netlify 面板里的设置就可以不用管了。
+[build]
+  publish = "app"     # index.html 在这个文件夹里
+  command = ""        # 不需要构建
+
+# 头部规则也可以写在这儿;app/_headers 里已经有一份,
+# 两处都生效,手拖文件夹部署时靠的是 _headers。
